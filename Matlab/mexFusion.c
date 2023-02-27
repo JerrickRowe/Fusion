@@ -1,4 +1,4 @@
-// #include "Fusion.h"
+#include "Fusion.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -257,17 +257,57 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			mxAssert(fusion_output.earth_acc_y, "Null pointer error");
 			mxAssert(fusion_output.earth_acc_z, "Null pointer error");
 
+			FusionAhrs ahrs;
+			FusionAhrsInitialise(&ahrs);
 			for(int i = 0; i < fusion_input.len; i++) {
-				mexPrintf(" t=%.3f,dt=%.3f,acc:{%f,%f,%f},gyro:{%f,%f,%f}\n",
-						  fusion_input.ts[i],
-						  fusion_input.dt[i],
-						  fusion_input.ax[i],
-						  fusion_input.ay[i],
-						  fusion_input.az[i],
-						  fusion_input.gx[i],
-						  fusion_input.gy[i],
-						  fusion_input.gz[i]);
 				fusion_output.ts[i] = fusion_input.ts[i];
+				fusion_output.dt[i] = fusion_input.dt[i];
+				// Gyroscope data in degrees/s
+				const FusionVector gyroscope = { fusion_input.gx[i],
+												 fusion_input.gy[i],
+												 fusion_input.gz[i] };
+				// Accelerometer data in g
+				const FusionVector accelerometer = { fusion_input.ax[i],
+													 fusion_input.ay[i],
+													 fusion_input.az[i] };
+
+				FusionAhrsUpdateNoMagnetometer(&ahrs, gyroscope, accelerometer, fusion_input.dt[i]);
+
+				const FusionQuaternion q		  = FusionAhrsGetQuaternion(&ahrs);
+				const FusionEuler	   euler	  = FusionQuaternionToEuler(q);
+				const FusionVector	   linear_acc = FusionAhrsGetLinearAcceleration(&ahrs);
+				const FusionVector	   earth_acc  = FusionAhrsGetEarthAcceleration(&ahrs);
+
+				fusion_output.qw[i] = q.array[0];
+				fusion_output.qx[i] = q.array[1];
+				fusion_output.qy[i] = q.array[2];
+				fusion_output.qz[i] = q.array[3];
+
+				fusion_output.roll[i]  = euler.angle.roll;
+				fusion_output.pitch[i] = euler.angle.pitch;
+				fusion_output.yaw[i]   = euler.angle.yaw;
+
+				fusion_output.linear_acc_x[i] = linear_acc.axis.x;
+				fusion_output.linear_acc_y[i] = linear_acc.axis.y;
+				fusion_output.linear_acc_z[i] = linear_acc.axis.z;
+
+				fusion_output.earth_acc_x[i] = earth_acc.axis.x;
+				fusion_output.earth_acc_y[i] = earth_acc.axis.y;
+				fusion_output.earth_acc_z[i] = earth_acc.axis.z;
+
+				// mexPrintf("Roll %0.1f, Pitch %0.1f, Yaw %0.1f\n",
+				// 	   euler.angle.roll,
+				// 	   euler.angle.pitch,
+				// 	   euler.angle.yaw);
+				// mexPrintf(" t=%.3f,dt=%.3f,acc:{%f,%f,%f},gyro:{%f,%f,%f}\n",
+				// 		  fusion_input.ts[i],
+				// 		  fusion_input.dt[i],
+				// 		  fusion_input.ax[i],
+				// 		  fusion_input.ay[i],
+				// 		  fusion_input.az[i],
+				// 		  fusion_input.gx[i],
+				// 		  fusion_input.gy[i],
+				// 		  fusion_input.gz[i]);
 			}
 
 			mxSetFieldByNumber(plhs[0], 0, 0, ts);
@@ -289,20 +329,4 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			C_fusion_output_struct_to_matlab(plhs[0], &fusion_output);
 		}
 	}
-
-	// FusionAhrs ahrs;
-	// FusionAhrsInitialise(&ahrs);
-
-	// while (true) { // this loop should repeat each time new gyroscope data is available
-	//     const FusionVector gyroscope = {0.0f, 0.0f, 0.0f}; // replace this with actual gyroscope
-	//     data in degrees/s const FusionVector accelerometer = {0.0f, 0.0f, 1.0f}; // replace this
-	//     with actual accelerometer data in g
-
-	//     FusionAhrsUpdateNoMagnetometer(&ahrs, gyroscope, accelerometer, SAMPLE_PERIOD);
-
-	//     const FusionEuler euler = FusionQuaternionToEuler(FusionAhrsGetQuaternion(&ahrs));
-
-	//     printf("Roll %0.1f, Pitch %0.1f, Yaw %0.1f\n", euler.angle.roll, euler.angle.pitch,
-	//     euler.angle.yaw);
-	// }
 }
