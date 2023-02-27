@@ -1,140 +1,293 @@
 // #include "Fusion.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "mex.h"
+#include "matrix.h"
 
 #define SAMPLE_PERIOD (0.01f)  // replace this with actual sample period
 
+#if MX_HAS_INTERLEAVED_COMPLEX
+#define GET_POINTER(_arr) mxGetDoubles((_arr))
+#else
+#define GET_POINTER(_arr) mxGetPr((_arr))
+#endif
+
 struct fusion_input {
-	double ts;
-	double dt;
-	double ax;
-	double ay;
-	double az;
-	double gx;
-	double gy;
-	double gz;
+	size_t	len;
+	double *ts;
+	double *dt;
+	double *ax;
+	double *ay;
+	double *az;
+	double *gx;
+	double *gy;
+	double *gz;
 };
 typedef struct fusion_input *fusion_input_t;
 
-int matlab_fusion_struct_to_C(fusion_input_t dst, const mxArray *arr) {
-	const char	**fnames; /* pointers to field names */
-	const mwSize *dims;
-	mxArray		 *fout;
-	char		 *pdata = NULL;
-	mxClassID	 *classIDflags;
-	mwSize		  ndim;
+struct fusion_output {
+	size_t	  len;
+	mxDouble *ts;
+	mxDouble *dt;
+	mxDouble *qw;
+	mxDouble *qx;
+	mxDouble *qy;
+	mxDouble *qz;
+	mxDouble *roll;
+	mxDouble *pitch;
+	mxDouble *yaw;
+	mxDouble *linear_acc_x;
+	mxDouble *linear_acc_y;
+	mxDouble *linear_acc_z;
+	mxDouble *earth_acc_x;
+	mxDouble *earth_acc_y;
+	mxDouble *earth_acc_z;
+};
+typedef struct fusion_output *fusion_output_t;
 
-	const mxArray *root_arr = arr;
+int matlab_fusion_input_struct_to_C(fusion_input_t dst, const mxArray *matlab_fusion_struct) {
+	const char		  **fnames; /* pointers to field names */
+	const mwSize	   *dims;
+	mxArray			   *fout;
+	char			   *pdata = NULL;
+	mxClassID		   *classIDflags;
+	mwSize				ndim;
+	struct fusion_input tmp_fusion_input;
+
 	/* get input arguments */
-	int root_field_number	= mxGetNumberOfFields(root_arr);
-	int root_element_number = mxGetNumberOfElements(root_arr);
-
-	mexPrintf("root_field_number = %d, root_element_number = %d\n",
-			  root_field_number,
-			  root_element_number);
-
-	for(int ifield = 0; ifield < root_field_number; ifield++) {
-		mxArray *field = mxGetFieldByNumber(root_arr, 0, ifield);
-		mexPrintf("root_field[%d] have %d elements\n", ifield, mxGetNumberOfElements(field));
+	int matlab_fusion_struct_field_number = mxGetNumberOfFields(matlab_fusion_struct);
+	mexPrintf("matlab_fusion_struct_field_number = %d\n", matlab_fusion_struct_field_number);
+	// Get field number and verify
+	mxArray *first_field = mxGetFieldByNumber(matlab_fusion_struct, 0, 0);
+	tmp_fusion_input.len = mxGetNumberOfElements(first_field);
+	mexPrintf("Expected element number: %d\n", tmp_fusion_input.len);
+	bool structure_matched = true;
+	if(matlab_fusion_struct_field_number != 8) {
+		structure_matched = false;
 	}
+	// Extract fields
+	for(int ifield = 0; ifield < matlab_fusion_struct_field_number; ifield++) {
+		mxArray	   *field		   = mxGetFieldByNumber(matlab_fusion_struct, 0, ifield);
+		const char *field_name	   = mxGetFieldNameByNumber(matlab_fusion_struct, ifield);
+		size_t		element_number = mxGetNumberOfElements(field);
+		// Verify element number
+		if(tmp_fusion_input.len != element_number) {
+			mexPrintf("Element number of matlab_fusion_struct.%s not match, %d/%d\n",
+					  field_name,
+					  element_number,
+					  tmp_fusion_input.len);
+			structure_matched = false;
+			break;
+		}
+		// Verify field data type
+		if(!mxIsDouble(field)) {
+			mexPrintf("matlab_fusion_struct.%s is not double\n", field_name);
+			structure_matched = false;
+			break;
+		}
+		// Get field data pointers
+		double *value = GET_POINTER(field);
+		mxAssert(value, "Null pointer error");
 
-	/* allocate memory for storing classIDflags */
-	classIDflags = mxCalloc(root_field_number, sizeof(mxClassID));
-
-	// /* check empty field, proper data type, and data type consistency;
-	//  * and get classID for each field. */
-	// for(int ifield = 0; ifield < root_field_number; ifield++) {
-	// 	for(mwIndex jstruct = 0; jstruct < root_element_number; jstruct++) {
-	// 		mxArray *tmp = mxGetFieldByNumber(arr, jstruct, ifield);
-	// 		if(tmp == NULL) {
-	// 			mexPrintf("%s%d\t%s%d\n", "FIELD: ", ifield + 1, "STRUCT INDEX :", jstruct + 1);
-	// 			mexErrMsgIdAndTxt("mexFusion:fieldEmpty", "Above field is empty!");
-	// 		}
-	// 		if(jstruct == 0) {
-	// 			if((!mxIsChar(tmp) && !mxIsNumeric(tmp)) || mxIsSparse(tmp)) {
-	// 				mexPrintf("%s%d\t%s%d\n", "FIELD: ", ifield + 1, "STRUCT INDEX :", jstruct + 1);
-	// 				mexErrMsgIdAndTxt(
-	// 					"mexFusion:invalidField",
-	// 					"Above field must have either string or numeric non-sparse data.");
-	// 			}
-	// 			classIDflags[ifield] = mxGetClassID(tmp);
-	// 		} else {
-	// 			if(mxGetClassID(tmp) != classIDflags[ifield]) {
-	// 				mexPrintf("%s%d\t%s%d\n", "FIELD: ", ifield + 1, "STRUCT INDEX :", jstruct + 1);
-	// 				mexErrMsgIdAndTxt("mexFusion:invalidFieldType",
-	// 								  "Inconsistent data type in above field!");
-	// 			} else if(!mxIsChar(tmp)
-	// 					  && ((mxIsComplex(tmp) || mxGetNumberOfElements(tmp) != 1))) {
-	// 				mexPrintf("%s%d\t%s%d\n", "FIELD: ", ifield + 1, "STRUCT INDEX :", jstruct + 1);
-	// 				mexErrMsgIdAndTxt("mexFusion:fieldNotRealScalar",
-	// 								  "Numeric data in above field must be scalar and noncomplex!");
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	mxArray *field				  = mxGetFieldByNumber(root_arr, 0, 0);
-	int		 field_element_number = mxGetNumberOfElements(field);
-	mexPrintf("root_field[%d] have %d elements\n", 0, mxGetNumberOfElements(field));
-	for(mwIndex element_idx = 0; element_idx < field_element_number; element_idx++) {
-		for(int ifield = 0; ifield < root_field_number; ifield++) {
-			mxArray *tmp	 = mxGetFieldByNumber(field, element_idx, ifield);
-			double	*realPtr = mxGetPr(tmp);
-			if(realPtr == NULL) {
-				mexPrintf("Failed to get value for element[%d] field[%d]\n", element_idx, ifield);
-				continue;
-			}
-			const char *field_name = mxGetFieldNameByNumber(root_arr, ifield);
-			mexPrintf("#%d field[%d:\"%s\"] = %f\n", element_idx, ifield, field_name, *realPtr);
-			switch(ifield) {
-			case 0: dst->ts = *realPtr; break;
-			case 1: dst->dt = *realPtr; break;
-			case 2: dst->ax = *realPtr; break;
-			case 3: dst->ay = *realPtr; break;
-			case 4: dst->az = *realPtr; break;
-			case 5: dst->gx = *realPtr; break;
-			case 6: dst->gy = *realPtr; break;
-			case 7: dst->gz = *realPtr; break;
-			default: break;
-			}
+		if(strcmp(field_name, "ts") == 0) {
+			tmp_fusion_input.ts = value;
+		} else if(strcmp(field_name, "dt") == 0) {
+			tmp_fusion_input.dt = value;
+		} else if(strcmp(field_name, "ax") == 0) {
+			tmp_fusion_input.ax = value;
+		} else if(strcmp(field_name, "ay") == 0) {
+			tmp_fusion_input.ay = value;
+		} else if(strcmp(field_name, "az") == 0) {
+			tmp_fusion_input.az = value;
+		} else if(strcmp(field_name, "gx") == 0) {
+			tmp_fusion_input.gx = value;
+		} else if(strcmp(field_name, "gy") == 0) {
+			tmp_fusion_input.gy = value;
+		} else if(strcmp(field_name, "gz") == 0) {
+			tmp_fusion_input.gz = value;
+		} else {
+			mexPrintf("matlab_fusion_struct.%s is not a fusion struct field\n", field_name);
+			structure_matched = false;
+			break;
 		}
 	}
+	// Copy data pointers to destination
+	if(structure_matched) {
+		mexPrintf("Fusion structure matched\n");
+		*dst = tmp_fusion_input;
+	}
+	return 0;
+}
 
-	mxFree(classIDflags);
+int C_fusion_output_struct_to_matlab(mxArray *output, fusion_output_t src) {
+	mxArray *output_field_ts;
+	mxArray *output_field_dt;
+	mxArray *output_field_qw;
+	mxArray *output_field_qx;
+	mxArray *output_field_qy;
+	mxArray *output_field_qz;
+	mxArray *output_field_roll;
+	mxArray *output_field_pitch;
+	mxArray *output_field_yaw;
+	mxArray *output_field_linear_acc_x;
+	mxArray *output_field_linear_acc_y;
+	mxArray *output_field_linear_acc_z;
+	mxArray *output_field_earth_acc_x;
+	mxArray *output_field_earth_acc_y;
+	mxArray *output_field_earth_acc_z;
+	// Create mxArray data structures to hold the data
+	// // to be assigned for the structure.
+	// mystring = mxCreateString("This is my char");
+	// mydouble = mxCreateDoubleMatrix(1, 100, mxREAL);
+	// dblptr	 = mxGetPr(mydouble);
+	// for(i = 0; i < 100; i++)
+	// 	dblptr[i] = (double)i;
+
+	// // Assign field names
+	// fieldnames[0] = (char *)mxMalloc(20);
+	// fieldnames[1] = (char *)mxMalloc(20);
+
 	return 0;
 }
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+	mxArray				*ts;
+	mxArray				*dt;
+	mxArray				*qw;
+	mxArray				*qx;
+	mxArray				*qy;
+	mxArray				*qz;
+	mxArray				*roll;
+	mxArray				*pitch;
+	mxArray				*yaw;
+	mxArray				*linear_acc_x;
+	mxArray				*linear_acc_y;
+	mxArray				*linear_acc_z;
+	mxArray				*earth_acc_x;
+	mxArray				*earth_acc_y;
+	mxArray				*earth_acc_z;
+	struct fusion_input	 fusion_input;
+	struct fusion_output fusion_output = { 0 };
+
 	// mexPrintf("%d input argument(s).\n", nrhs);
 	// mexPrintf("%d output argument(s).\n", nlhs);
 
 	for(int i = 0; i < nrhs; i++) {
-		struct fusion_input fusion_input;
-
-		// mexPrintf("Process prhs[%d]\n", i);
+		mexPrintf("Process prhs[%d]\n", i);
 		const mxArray *arr = prhs[i];
 		if(!mxIsStruct(arr)) {
 			mexPrintf("Skip prhs[%d]\n", i);
 			continue;
 		}
 
-		if(matlab_fusion_struct_to_C(&fusion_input, arr) != 0) {
+		if(matlab_fusion_input_struct_to_C(&fusion_input, arr) != 0) {
 			mexPrintf("Failed to convert prhs[%d]\n", i);
 			continue;
 		}
 
-		mexPrintf(" t=%f,dt=%f,acc:{%f,%f,%f},gyro:{%f,%f,%f}\n",
-				  fusion_input.ts,
-				  fusion_input.dt,
-				  fusion_input.ax,
-				  fusion_input.ay,
-				  fusion_input.az,
-				  fusion_input.gx,
-				  fusion_input.gy,
-				  fusion_input.gz);
+		if(nlhs >= 1) {
+			const char *field_names[15] = {
+				[0]	 = "ts",
+				[1]	 = "dt",
+				[2]	 = "qw",
+				[3]	 = "qx",
+				[4]	 = "qy",
+				[5]	 = "qz",
+				[6]	 = "roll",
+				[7]	 = "pitch",
+				[8]	 = "yaw",
+				[9]	 = "linear_acc_x",
+				[10] = "linear_acc_y",
+				[11] = "linear_acc_z",
+				[12] = "earth_acc_x",
+				[13] = "earth_acc_y",
+				[14] = "earth_acc_z",
+			};
+			plhs[0]			  = mxCreateStructMatrix(1, 1, 15, field_names);
+			fusion_output.len = fusion_input.len;
+
+			ts			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			dt			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			qw			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			qx			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			qy			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			qz			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			roll		 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			pitch		 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			yaw			 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			linear_acc_x = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			linear_acc_y = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			linear_acc_z = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			earth_acc_x	 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			earth_acc_y	 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+			earth_acc_z	 = mxCreateNumericMatrix(fusion_output.len, 1, mxDOUBLE_CLASS, mxREAL);
+
+			fusion_output.ts		   = GET_POINTER(ts);
+			fusion_output.dt		   = GET_POINTER(dt);
+			fusion_output.qw		   = GET_POINTER(qw);
+			fusion_output.qx		   = GET_POINTER(qx);
+			fusion_output.qy		   = GET_POINTER(qy);
+			fusion_output.qz		   = GET_POINTER(qz);
+			fusion_output.roll		   = GET_POINTER(roll);
+			fusion_output.pitch		   = GET_POINTER(pitch);
+			fusion_output.yaw		   = GET_POINTER(yaw);
+			fusion_output.linear_acc_x = GET_POINTER(linear_acc_x);
+			fusion_output.linear_acc_y = GET_POINTER(linear_acc_y);
+			fusion_output.linear_acc_z = GET_POINTER(linear_acc_z);
+			fusion_output.earth_acc_x  = GET_POINTER(earth_acc_x);
+			fusion_output.earth_acc_y  = GET_POINTER(earth_acc_y);
+			fusion_output.earth_acc_z  = GET_POINTER(earth_acc_z);
+
+			mxAssert(fusion_output.ts, "Null pointer error");
+			mxAssert(fusion_output.dt, "Null pointer error");
+			mxAssert(fusion_output.qw, "Null pointer error");
+			mxAssert(fusion_output.qx, "Null pointer error");
+			mxAssert(fusion_output.qy, "Null pointer error");
+			mxAssert(fusion_output.qz, "Null pointer error");
+			mxAssert(fusion_output.roll, "Null pointer error");
+			mxAssert(fusion_output.pitch, "Null pointer error");
+			mxAssert(fusion_output.yaw, "Null pointer error");
+			mxAssert(fusion_output.linear_acc_x, "Null pointer error");
+			mxAssert(fusion_output.linear_acc_y, "Null pointer error");
+			mxAssert(fusion_output.linear_acc_z, "Null pointer error");
+			mxAssert(fusion_output.earth_acc_x, "Null pointer error");
+			mxAssert(fusion_output.earth_acc_y, "Null pointer error");
+			mxAssert(fusion_output.earth_acc_z, "Null pointer error");
+
+			for(int i = 0; i < fusion_input.len; i++) {
+				mexPrintf(" t=%.3f,dt=%.3f,acc:{%f,%f,%f},gyro:{%f,%f,%f}\n",
+						  fusion_input.ts[i],
+						  fusion_input.dt[i],
+						  fusion_input.ax[i],
+						  fusion_input.ay[i],
+						  fusion_input.az[i],
+						  fusion_input.gx[i],
+						  fusion_input.gy[i],
+						  fusion_input.gz[i]);
+				fusion_output.ts[i] = fusion_input.ts[i];
+			}
+
+			mxSetFieldByNumber(plhs[0], 0, 0, ts);
+			mxSetFieldByNumber(plhs[0], 0, 1, dt);
+			mxSetFieldByNumber(plhs[0], 0, 2, qw);
+			mxSetFieldByNumber(plhs[0], 0, 3, qx);
+			mxSetFieldByNumber(plhs[0], 0, 4, qy);
+			mxSetFieldByNumber(plhs[0], 0, 5, qz);
+			mxSetFieldByNumber(plhs[0], 0, 6, roll);
+			mxSetFieldByNumber(plhs[0], 0, 7, pitch);
+			mxSetFieldByNumber(plhs[0], 0, 8, yaw);
+			mxSetFieldByNumber(plhs[0], 0, 9, linear_acc_x);
+			mxSetFieldByNumber(plhs[0], 0, 10, linear_acc_y);
+			mxSetFieldByNumber(plhs[0], 0, 11, linear_acc_z);
+			mxSetFieldByNumber(plhs[0], 0, 12, earth_acc_x);
+			mxSetFieldByNumber(plhs[0], 0, 13, earth_acc_y);
+			mxSetFieldByNumber(plhs[0], 0, 14, earth_acc_z);
+
+			C_fusion_output_struct_to_matlab(plhs[0], &fusion_output);
+		}
 	}
 
 	// FusionAhrs ahrs;
