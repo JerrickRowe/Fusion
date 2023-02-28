@@ -1,3 +1,6 @@
+ipath = ['-I',fullfile('..', 'Fusion')];
+mex('-R2018a',"COPTIMFLAGS=-O0",ipath,"mexFusion.c","..\Fusion\*.c");
+
 if exist('logfile', 'var')
 else
     logfile = readtable("LOG00241.xlsx");
