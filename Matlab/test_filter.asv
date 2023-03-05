@@ -1,0 +1,15 @@
+movean_k = 10;
+
+fusion_input_movmean.ax = movmean(fusion_input.ax, movean_k);
+fusion_input_movmean.ay = movmean(fusion_input.ay, movean_k);
+fusion_input_movmean.az = movmean(fusion_input.az, movean_k);
+% fusion_input_movmean.gx = movemean(fusion_input.gx, fusion_input_movmean);
+% fusion_input_movmean.gy = movemean(fusion_input.gy, fusion_input_movmean);
+% fusion_input_movmean.gz = movemean(fusion_input.gz, fusion_input_movmean);
+
+ts = fusion_input.ts;
+
+tiledlayout(3,1)
+
+ax1 = nexttile;
+plot(ts,y1)

@@ -37,7 +37,7 @@ fusion_input_acc_movmean.ax = movmean(fusion_input_acc_movmean.ax, movean_k);
 fusion_input_acc_movmean.ay = movmean(fusion_input_acc_movmean.ay, movean_k);
 fusion_input_acc_movmean.az = movmean(fusion_input_acc_movmean.az, movean_k);
 
-fig_compare_movmean = figure(1);
+fig_compare_movmean = figure();
 tiledlayout(3,1);
 
 ax_plot = nexttile;
@@ -80,49 +80,29 @@ qcomp_plot_1 = quaternion_plot_compare(ts_interp, quat_raw, quat_acc_movmean);
 set(qcomp_plot_1, 'Name', 'Compare quaterion curve between raw and movmean');
 figure(qcomp_plot_1);
 
-spect = figure(3);
-tiledlayout(3,1);
-ts = ts_interp;
+spect = figure();
+tiledlayout(2,1);
 
-% anz_plot = nexttile;
-% title("anz");
-% plot(fusion_output_acc_movmean.ts,fusion_output_acc_movmean.earth_acc_z);
+anz_plot = nexttile;
+title("anz");
+plot(fusion_output_acc_movmean.ts,fusion_output_acc_movmean.earth_acc_z);
 
-spect_lin_acc = nexttile;
-title("spectrum filtered");
+spect_plot = nexttile;
+title("spectrum");
 segment_len = 250;
 window = hamming(segment_len);
-overlap_len = 249;
+overlap_len = 240;
 nfft = 250;
-vib = sqrt(fusion_input_acc_movmean.ax.^2+fusion_input_acc_movmean.ay.^2+fusion_input_acc_movmean.az.^2);
-[s1, f1, t1] = spectrogram(vib,window,overlap_len,nfft,250,'yaxis');
-imagesc(t1+ts(1),f1,log(abs(s1)));
-set(gca,'YDir','normal');
+% [s, f, t] = 
+spectrogram(fusion_input_interp.az,window,overlap_len,nfft,250,'yaxis');
+spect_axis = gc
 
-spect_raw_acc = nexttile;
-title("spectrum acc raw");
-segment_len = 250;
-window = hamming(segment_len);
-overlap_len = 249;
-nfft = 250;
-vib = sqrt(fusion_input_interp.ax.^2+fusion_input_interp.ay.^2+fusion_input_interp.az.^2);
-[s2, f2, t2] = spectrogram(vib,window,overlap_len,nfft,250,'yaxis');
-imagesc(t2+ts(1),f2,log(abs(s2)));
-set(gca,'YDir','normal');
 
-spect_diff = nexttile;
-title("spectrum diff");
-f_diff = f2;
-t_diff = t2;
-s_diff = s1 - s2;
-imagesc(t_diff+ts(1),f_diff,log(abs(s_diff)));
-set(gca,'YDir','normal');
-
-linkaxes([spect_lin_acc,spect_raw_acc,spect_diff],"x");
+linkaxes([anz_plot,spect_plot],"x");
 
 
 function fig = quaternion_plot_compare(ts,a,b)
-    fig = figure(2);
+    fig = figure();
     tiledlayout(4,1);
     
     w_plot = nexttile;
