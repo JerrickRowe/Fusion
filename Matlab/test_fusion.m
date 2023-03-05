@@ -31,7 +31,7 @@ fusion_input_interp.gx = interpn(ts,fusion_input.gx,fusion_input_interp.ts,inter
 fusion_input_interp.gy = interpn(ts,fusion_input.gy,fusion_input_interp.ts,interp_method);
 fusion_input_interp.gz = interpn(ts,fusion_input.gz,fusion_input_interp.ts,interp_method);
 
-movean_k = 30;
+movean_k = 250;
 fusion_input_acc_movmean = fusion_input_interp;
 fusion_input_acc_movmean.ax = movmean(fusion_input_acc_movmean.ax, movean_k);
 fusion_input_acc_movmean.ay = movmean(fusion_input_acc_movmean.ay, movean_k);
@@ -88,35 +88,43 @@ ts = ts_interp;
 % title("anz");
 % plot(fusion_output_acc_movmean.ts,fusion_output_acc_movmean.earth_acc_z);
 
-spect_lin_acc = nexttile;
-title("spectrum filtered");
-segment_len = 250;
+fs = 250;
+segment_len = fs;
 window = hamming(segment_len);
-overlap_len = 249;
-nfft = 250;
-vib = sqrt(fusion_input_acc_movmean.ax.^2+fusion_input_acc_movmean.ay.^2+fusion_input_acc_movmean.az.^2);
-[s1, f1, t1] = spectrogram(vib,window,overlap_len,nfft,250,'yaxis');
+overlap_len = segment_len-1;
+nfft = fs;
+
+signal_1 = sqrt(fusion_input_acc_movmean.ax.^2+fusion_input_acc_movmean.ay.^2+fusion_input_acc_movmean.az.^2);
+signal_2 = sqrt(fusion_input_interp.ax.^2+fusion_input_interp.ay.^2+fusion_input_interp.az.^2);
+
+spect_lin_acc = nexttile;
+hold on
+title("spectrum filtered")
+[s1, f1, t1] = spectrogram(signal_1,window,overlap_len,nfft,fs,'yaxis');
 imagesc(t1+ts(1),f1,log(abs(s1)));
 set(gca,'YDir','normal');
+xlim([ts(1) ts(length(ts))]);
+ylim([f1(1) f1(length(f1))]);
 
 spect_raw_acc = nexttile;
+hold on
 title("spectrum acc raw");
-segment_len = 250;
-window = hamming(segment_len);
-overlap_len = 249;
-nfft = 250;
-vib = sqrt(fusion_input_interp.ax.^2+fusion_input_interp.ay.^2+fusion_input_interp.az.^2);
-[s2, f2, t2] = spectrogram(vib,window,overlap_len,nfft,250,'yaxis');
+[s2, f2, t2] = spectrogram(signal_2,window,overlap_len,nfft,fs,'yaxis');
 imagesc(t2+ts(1),f2,log(abs(s2)));
 set(gca,'YDir','normal');
+xlim([ts(1) ts(length(ts))]);
+ylim([f2(1) f2(length(f2))]);
 
 spect_diff = nexttile;
+hold on
 title("spectrum diff");
 f_diff = f2;
 t_diff = t2;
 s_diff = s1 - s2;
 imagesc(t_diff+ts(1),f_diff,log(abs(s_diff)));
 set(gca,'YDir','normal');
+xlim([ts(1) ts(length(ts))]);
+ylim([f_diff(1) f_diff(length(f_diff))]);
 
 linkaxes([spect_lin_acc,spect_raw_acc,spect_diff],"x");
 
