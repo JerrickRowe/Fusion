@@ -62,12 +62,22 @@ N = 6;
 [b,a] = butter(N,fc/(fs/2),'low');
 
 fusion_input_acc_iir = fusion_input_interp;
-fusion_input_acc_iir.ax = filter(b, a, fusion_input_acc_iir.ax);
-fusion_input_acc_iir.ay = filter(b, a, fusion_input_acc_iir.ay);
-fusion_input_acc_iir.az = filter(b, a, fusion_input_acc_iir.az);
-fusion_input_acc_iir.gx = filter(b, a, fusion_input_acc_iir.gx);
-fusion_input_acc_iir.gy = filter(b, a, fusion_input_acc_iir.gy);
-fusion_input_acc_iir.gz = filter(b, a, fusion_input_acc_iir.gz);
+% fusion_input_acc_iir.ax = filter(b, a, fusion_input_acc_iir.ax);
+% fusion_input_acc_iir.ay = filter(b, a, fusion_input_acc_iir.ay);
+% fusion_input_acc_iir.az = filter(b, a, fusion_input_acc_iir.az);
+% fusion_input_acc_iir.gx = filter(b, a, fusion_input_acc_iir.gx);
+% fusion_input_acc_iir.gy = filter(b, a, fusion_input_acc_iir.gy);
+% fusion_input_acc_iir.gz = filter(b, a, fusion_input_acc_iir.gz);
+
+f.b = b;
+f.a = a;
+
+fusion_input_acc_iir.ax = filter_butter(f, fusion_input_acc_iir.ax);
+fusion_input_acc_iir.ay = filter_butter(f, fusion_input_acc_iir.ay);
+fusion_input_acc_iir.az = filter_butter(f, fusion_input_acc_iir.az);
+fusion_input_acc_iir.gx = filter_butter(f, fusion_input_acc_iir.gx);
+fusion_input_acc_iir.gy = filter_butter(f, fusion_input_acc_iir.gy);
+fusion_input_acc_iir.gz = filter_butter(f, fusion_input_acc_iir.gz);
 
 fig_compare_movmean = figure(1);
 tiledlayout(3,1);
