@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+				"C:/ProgramData/MATLAB/SupportPackages/R2022b/3P.instrset/mingw_w64.instrset/x86_64-w64-mingw32/include",
+				"C:/ProgramData/MATLAB/SupportPackages/R2022b/3P.instrset/mingw_w64.instrset/lib/gcc/x86_64-w64-mingw32/6.3.0/include",
+				"C:/Program Files/MATLAB/R2022b/extern/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ]
+        }
+    ],
+    "version": 4
+}
