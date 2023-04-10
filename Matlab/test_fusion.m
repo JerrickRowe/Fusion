@@ -41,12 +41,12 @@ gx_matlab_iir = matlab_iir(order,fs,fc,gx_interp);
 gy_matlab_iir = matlab_iir(order,fs,fc,gy_interp);
 gz_matlab_iir = matlab_iir(order,fs,fc,gz_interp);
 
-ax_filtered_FilterX = FilterM(b,a, ax_interp,zeros(0, 1, fil_order)) + 0.01;
-ay_filtered_FilterX = FilterM(b,a, ay_interp,zeros(0, 1, fil_order)) + 0.01;
-az_filtered_FilterX = FilterM(b,a, az_interp,zeros(0, 1, fil_order)) + 0.01;
-gx_filtered_FilterX = FilterM(b,a, gx_interp,zeros(0, 1, fil_order)) + 0.01;
-gy_filtered_FilterX = FilterM(b,a, gy_interp,zeros(0, 1, fil_order)) + 0.01;
-gz_filtered_FilterX = FilterM(b,a, gz_interp,zeros(0, 1, fil_order)) + 0.01;
+ax_filtered_FilterX = FilterM(b,a, ax_interp,zeros(0, 1, order)) + 0.01;
+ay_filtered_FilterX = FilterM(b,a, ay_interp,zeros(0, 1, order)) + 0.01;
+az_filtered_FilterX = FilterM(b,a, az_interp,zeros(0, 1, order)) + 0.01;
+gx_filtered_FilterX = FilterM(b,a, gx_interp,zeros(0, 1, order)) + 0.01;
+gy_filtered_FilterX = FilterM(b,a, gy_interp,zeros(0, 1, order)) + 0.01;
+gz_filtered_FilterX = FilterM(b,a, gz_interp,zeros(0, 1, order)) + 0.01;
 
 ax_filtered_mex = mex_iir(ax_interp) + 0.02;
 ay_filtered_mex = mex_iir(ay_interp) + 0.02;
