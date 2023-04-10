@@ -58,8 +58,7 @@ extern "C" {
 struct iir {
 	uint32_t magic_word;
 	uint8_t	 len;
-	float	*x;
-	float	*y;
+	float	*z;
 	float	*a;
 	float	*b;
 };
@@ -72,7 +71,7 @@ struct iir {
 
 /*--- Public function definitions ------------------------------------------------*/
 
-iir_t iir_new(uint8_t len, FLOAT *a, FLOAT *b, FLOAT init_output) {
+iir_t iir_new(uint8_t len, FLOAT *a, FLOAT *b) {
 	ASSERT(len);
 	ASSERT(a);
 	ASSERT(b);
@@ -83,17 +82,15 @@ iir_t iir_new(uint8_t len, FLOAT *a, FLOAT *b, FLOAT init_output) {
 	ASSERT(ret->a);
 	ret->b = (FLOAT *)MALLOC(sizeof(FLOAT) * len);
 	ASSERT(ret->b);
-	ret->x = (FLOAT *)MALLOC(sizeof(FLOAT) * len);
-	ASSERT(ret->x);
-	ret->y = (FLOAT *)MALLOC(sizeof(FLOAT) * len);
-	ASSERT(ret->y);
+	ret->z = (FLOAT *)MALLOC(sizeof(FLOAT) * len);
+	ASSERT(ret->z);
 	for(int i = 0; i < len; i++) {
 		ret->a[i] = a[i];
 		ret->b[i] = b[i];
+		ret->z[i] = 0;
 	}
 	ret->len		= len;
 	ret->magic_word = MAGIC_WORD;
-	iir_reset(ret, init_output);
 	return ret;
 }
 
@@ -103,36 +100,32 @@ void iir_del(iir_t *p_iir) {
 	ASSERT((*p_iir)->magic_word == MAGIC_WORD);
 	ASSERT((*p_iir)->a);
 	ASSERT((*p_iir)->b);
-	ASSERT((*p_iir)->y);
+	ASSERT((*p_iir)->z);
 	FREE((*p_iir)->a);
 	FREE((*p_iir)->b);
-	FREE((*p_iir)->y);
+	FREE((*p_iir)->z);
 	FREE(*p_iir);
 	*p_iir = NULL;
 }
 
-void iir_reset(iir_t iir, FLOAT init_output) {
+void iir_reset(iir_t iir, FLOAT *init_z, uint8_t len) {
 	ASSERT(iir);
 	ASSERT(iir->magic_word == MAGIC_WORD);
+	ASSERT(iir->len == len);
 	for(int i = 0; i < iir->len; i++) {
-		iir->y[i] = init_output;
+		iir->z[i] = init_z[i];
 	}
 }
 
 FLOAT iir_step(iir_t iir, FLOAT input) {
 	ASSERT(iir->magic_word == MAGIC_WORD);
-	FLOAT b[7];
-	for(int k = 0; k < iir->len; k++) {
-		b[k] = iir->b[k];
+	uint8_t order = iir->len - 1;
+	FLOAT	Yi	  = iir->b[0] * input + iir->z[0];	// Filtered value
+	for(int j = 1; j < order; j++) {				// Update conditions
+		iir->z[j - 1] = iir->b[j] * input + iir->z[j] - iir->a[j] * Yi;
 	}
-	// if((!rtIsInf(iir->a[0])) && (!rtIsNaN(iir->a[0])) && (!(iir->a[0] == 0.0))
-	//    && (iir->a[0] != 1.0)) {
-	// if(!(iir->a[0] == 0.0) && (iir->a[0] != 1.0)) {
-		for(int k = 0; k < 7; k++) {
-			b[k] /= iir->a[0];
-		}
-	// }
-	return (FLOAT)input * b[0];
+	iir->z[order - 1] = iir->b[order] * input - iir->a[order] * Yi;
+	return Yi;	// Write to output
 }
 
 #ifdef __cplusplus

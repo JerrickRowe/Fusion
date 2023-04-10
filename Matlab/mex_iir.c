@@ -163,7 +163,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	plhs[0]		   = mxCreateDoubleMatrix(1, len, mxREAL);
 	double *Result = mxGetPr(plhs[0]);
 
-	iir_t  iir			= iir_new(LENGTH, coef_a, coef_b, (FLOAT)*input);
+	iir_t  iir			= iir_new(LENGTH, coef_a, coef_b);
 	double TMPZ[LENGTH] = { 0 };
 
 	double ba[LENGTH * 2];
@@ -174,12 +174,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	NormalizeBA(ba, LENGTH);
 
 	// CoreSingleN(input, len, 1, &ba[LENGTH], ba, ORDER, TMPZ, Result);
-	CoreDoubleN(input, len, 1, &ba[LENGTH], ba, ORDER, TMPZ, Result);
+	// CoreDoubleN(input, len, 1, &ba[LENGTH], ba, ORDER, TMPZ, Result);
 
-	// for(int i = 0; i < len; i++) {
-	// 	// *(Result++) = (double)iir_step(iir, (FLOAT) * (input++));
-	// 	*(Result++) = (double)test_butter((FLOAT) * (input++));
-	// }
+	for(int i = 0; i < len; i++) {
+		*(Result++) = (double)iir_step(iir, (FLOAT) * (input++));
+	}
 
 	iir_del(&iir);
 }

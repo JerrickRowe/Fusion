@@ -45,37 +45,37 @@ typedef float		FLOAT;
 /*--- Public function declarations ----------------------------------------------------*/
 
 /**
- * @brief
+ * @brief Create an IIR-Filter object
  *
- * @param order
- * @param a
- * @param b
- * @param init_output
- * @return iir_t
+ * @param len Length of coefficients of the filter, which is order+1
+ * @param a Coefficient a of the filter H(z) = B(z) / A(z)
+ * @param b Coefficient b of the filter H(z) = B(z) / A(z)
+ * @return iir_t Filter object
  */
-iir_t iir_new(uint8_t order, FLOAT* a, FLOAT* b, FLOAT init_output);
+iir_t iir_new(uint8_t len, FLOAT* a, FLOAT* b);
 
 /**
- * @brief
+ * @brief Delete the filter object
  *
- * @param p_iir
+ * @param p_iir Pointer to the filter object
  */
 void iir_del(iir_t* p_iir);
 
 /**
- * @brief
+ * @brief Reset the filter to initial state
  *
- * @param iir
- * @param init_output
+ * @param iir Filter object
+ * @param init_vector Pointer to the init vector
+ * @param len Length of init vector, must be the same as the length of the filter itself
  */
-void iir_reset(iir_t iir, FLOAT init_output);
+void iir_reset(iir_t iir, FLOAT* init_z, uint8_t len);
 
 /**
- * @brief
+ * @brief Filter 1 sample of data
  *
- * @param iir
- * @param input
- * @return FLOAT
+ * @param iir Filter object
+ * @param input Sample of data
+ * @return FLOAT Filtered data
  */
 FLOAT iir_step(iir_t iir, FLOAT input);
 
