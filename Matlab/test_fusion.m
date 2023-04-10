@@ -37,13 +37,13 @@ gx_filtered = test_iir(fs,fc,gx_interp);
 gy_filtered = test_iir(fs,fc,gy_interp);
 gz_filtered = test_iir(fs,fc,gz_interp);
 
-[b,a] = butter(6,fc/(fs/2));
-ax_filtered_FilterX = FilterM(b,a, ax_interp,repmat(0, 1, 6));
-ay_filtered_FilterX = FilterM(b,a, ay_interp,repmat(0, 1, 6));
-az_filtered_FilterX = FilterM(b,a, az_interp,repmat(0, 1, 6));
-gx_filtered_FilterX = FilterM(b,a, gx_interp,repmat(0, 1, 6));
-gy_filtered_FilterX = FilterM(b,a, gy_interp,repmat(0, 1, 6));
-gz_filtered_FilterX = FilterM(b,a, gz_interp,repmat(0, 1, 6));
+[b,a] = butter(5,fc/(fs/2));
+ax_filtered_FilterX = FilterM(b,a, ax_interp,repmat(0, 1, 5));
+ay_filtered_FilterX = FilterM(b,a, ay_interp,repmat(0, 1, 5));
+az_filtered_FilterX = FilterM(b,a, az_interp,repmat(0, 1, 5));
+gx_filtered_FilterX = FilterM(b,a, gx_interp,repmat(0, 1, 5));
+gy_filtered_FilterX = FilterM(b,a, gy_interp,repmat(0, 1, 5));
+gz_filtered_FilterX = FilterM(b,a, gz_interp,repmat(0, 1, 5));
 
 ax_filtered_mex = mex_iir(ax_interp);
 ay_filtered_mex = mex_iir(ay_interp);

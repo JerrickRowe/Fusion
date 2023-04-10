@@ -406,7 +406,18 @@ void CoreDoubleN(double *X, mwSize MX, mwSize NX, double *a, double *b,
    
   double Xi, Yi;
   mwSize i, j, R;
-  
+
+	mexPrintf("filterX: *X=%f,MX=%d,NX=%d,order=%d,*Z=%f,*Y=%d", *X, MX, NX, order, *Z, *Y);
+	mexPrintf("\n  a = {");
+	for(int k = 0; k < order + 1; k++) {
+		mexPrintf("%.2f, ", a[k]);
+	}
+	mexPrintf("}\n  b = {");
+	for(int k = 0; k < order + 1; k++) {
+		mexPrintf("%.2f, ", b[k]);
+	}
+	mexPrintf("}\n");
+
   i = 0;
   while (NX--) {                         // Next slice
      R = i + MX;                         // End of the column

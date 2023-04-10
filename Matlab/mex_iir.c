@@ -8,21 +8,26 @@
 
 #include "iir.h"
 
-#define LENGTH (7)
+#define LENGTH (11)
 
 static FLOAT coef_a[LENGTH] = {
 	1,
-	-4.06164399921344,
-	7.09950381875073,
-	-6.78501602539753,
-	3.72301942889162,
-	-1.10867085534354,
-	0.139660041747140,
+	-6.78896078801031,
+	21.1186057325602,
+	-39.5466389186279,
+	49.2807281548787,
+	-42.6412048119369,
+	25.9155696805515,
+	-10.9133701016210,
+	3.04505315550608,
+	-0.507983530677825,
+	0.0384514437152823,
 };
 
 static FLOAT coef_b[LENGTH] = {
-	0.000107068897421402, 0.000642413384528415, 0.00160603346132104,  0.00214137794842805,
-	0.00160603346132104,  0.000642413384528415, 0.000107068897421402,
+	2.44156579882903e-07, 2.44156579882903e-06, 1.09870460947307e-05, 2.92987895859484e-05,
+	5.12728817754097e-05, 6.15274581304916e-05, 5.12728817754097e-05, 2.92987895859484e-05,
+	1.09870460947307e-05, 2.44156579882903e-06, 2.44156579882903e-07,
 };
 
 void CoreSingleN(float	*X,
@@ -96,6 +101,17 @@ void CoreDoubleN(double *X,
 	double Xi, Yi;
 	mwSize i, j, R;
 
+	mexPrintf("mex_iir: *X=%f,MX=%d,NX=%d,order=%d,*Z=%f,*Y=%d", *X, MX, NX, order, *Z, *Y);
+	mexPrintf("\n  a = {");
+	for(int k = 0; k < order + 1; k++) {
+		mexPrintf("%.2f, ", a[k]);
+	}
+	mexPrintf("}\n  b = {");
+	for(int k = 0; k < order + 1; k++) {
+		mexPrintf("%.2f, ", b[k]);
+	}
+	mexPrintf("}\n");
+
 	i = 0;
 	while(NX--) {	 // Next slice
 		R = i + MX;	 // End of the column
@@ -155,7 +171,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		mexPrintf("Norm: b[%d]=%f, a[%d]=%f, Z[%d]=%f\n", i, ba[i], i, ba[LENGTH + i], i, TMPZ[i]);
 	}
 
-	CoreDoubleN(input, len, 1, &ba[LENGTH], ba, LENGTH, TMPZ, Result);
+	CoreDoubleN(input, len, 1, &ba[LENGTH], ba, LENGTH - 1, TMPZ, Result);
 
 	// for(int i = 0; i < len; i++) {
 	// 	// *(Result++) = (double)iir_step(iir, (FLOAT) * (input++));
