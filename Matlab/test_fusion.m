@@ -13,8 +13,12 @@ ts_raw = logfile.frame_timestamp / 1000;
 dt = [0; diff(ts_raw)];
 ilen = length(ts_raw);
 fs = 250;
-fc = 20;
+fc = 17;
+order = 3;
 ts_interp = ts_raw(1):1/fs:ts_raw(length(ts_raw));
+
+[b,a] = butter(order,fc/(fs/2));
+[z,p,k] = tf2zpk(b,a);
 
 ax_raw = logfile.imu1_ax;
 ay_raw = logfile.imu1_ay;
@@ -30,27 +34,26 @@ gx_interp = interp1(ts_raw,gx_raw,ts_interp,"spline");
 gy_interp = interp1(ts_raw,gy_raw,ts_interp,"spline");
 gz_interp = interp1(ts_raw,gz_raw,ts_interp,"spline");
 
-ax_filtered = test_iir(fs,fc,ax_interp);
-ay_filtered = test_iir(fs,fc,ay_interp);
-az_filtered = test_iir(fs,fc,az_interp);
-gx_filtered = test_iir(fs,fc,gx_interp);
-gy_filtered = test_iir(fs,fc,gy_interp);
-gz_filtered = test_iir(fs,fc,gz_interp);
+ax_matlab_iir = matlab_iir(order,fs,fc,ax_interp);
+ay_matlab_iir = matlab_iir(order,fs,fc,ay_interp);
+az_matlab_iir = matlab_iir(order,fs,fc,az_interp);
+gx_matlab_iir = matlab_iir(order,fs,fc,gx_interp);
+gy_matlab_iir = matlab_iir(order,fs,fc,gy_interp);
+gz_matlab_iir = matlab_iir(order,fs,fc,gz_interp);
 
-[b,a] = butter(5,fc/(fs/2));
-ax_filtered_FilterX = FilterM(b,a, ax_interp,repmat(0, 1, 5));
-ay_filtered_FilterX = FilterM(b,a, ay_interp,repmat(0, 1, 5));
-az_filtered_FilterX = FilterM(b,a, az_interp,repmat(0, 1, 5));
-gx_filtered_FilterX = FilterM(b,a, gx_interp,repmat(0, 1, 5));
-gy_filtered_FilterX = FilterM(b,a, gy_interp,repmat(0, 1, 5));
-gz_filtered_FilterX = FilterM(b,a, gz_interp,repmat(0, 1, 5));
+ax_filtered_FilterX = FilterM(b,a, ax_interp,zeros(0, 1, fil_order)) + 0.01;
+ay_filtered_FilterX = FilterM(b,a, ay_interp,zeros(0, 1, fil_order)) + 0.01;
+az_filtered_FilterX = FilterM(b,a, az_interp,zeros(0, 1, fil_order)) + 0.01;
+gx_filtered_FilterX = FilterM(b,a, gx_interp,zeros(0, 1, fil_order)) + 0.01;
+gy_filtered_FilterX = FilterM(b,a, gy_interp,zeros(0, 1, fil_order)) + 0.01;
+gz_filtered_FilterX = FilterM(b,a, gz_interp,zeros(0, 1, fil_order)) + 0.01;
 
-ax_filtered_mex = mex_iir(ax_interp);
-ay_filtered_mex = mex_iir(ay_interp);
-az_filtered_mex = mex_iir(az_interp);
-gx_filtered_mex = mex_iir(gx_interp);
-gy_filtered_mex = mex_iir(gy_interp);
-gz_filtered_mex = mex_iir(gz_interp);
+ax_filtered_mex = mex_iir(ax_interp) + 0.02;
+ay_filtered_mex = mex_iir(ay_interp) + 0.02;
+az_filtered_mex = mex_iir(az_interp) + 0.02;
+gx_filtered_mex = mex_iir(gx_interp) + 0.02;
+gy_filtered_mex = mex_iir(gy_interp) + 0.02;
+gz_filtered_mex = mex_iir(gz_interp) + 0.02;
 
 % Compare raw IMU and filtered imu
 plot_compare_acc_filtered = figure(1);
@@ -60,48 +63,48 @@ hold on
 title("ax");
 plot(ts_raw,ax_raw,'.g');
 plot(ts_interp,ax_interp,'--y');
-plot(ts_interp,ax_filtered,"red");
-plot(ts_interp,ax_filtered_mex,"blue");
+plot(ts_interp,ax_matlab_iir,"blue");
+plot(ts_interp,ax_filtered_mex,"red");
 plot(ts_interp,ax_filtered_FilterX,"black");
 ay_fig = nexttile(3);
 hold on
 title("ay");
 plot(ts_raw,ay_raw,'.g');
 plot(ts_interp,ay_interp,'--y');
-plot(ts_interp,ay_filtered,"red");
-plot(ts_interp,ay_filtered_mex,"blue");
+plot(ts_interp,ay_matlab_iir,"blue");
+plot(ts_interp,ay_filtered_mex,"red");
 plot(ts_interp,ay_filtered_FilterX,"black");
 az_fig = nexttile(5);
 hold on
 title("az");
 plot(ts_raw,az_raw,'.g');
 plot(ts_interp,az_interp,'--y');
-plot(ts_interp,az_filtered,"red");
-plot(ts_interp,az_filtered_mex,"blue");
+plot(ts_interp,az_matlab_iir,"blue");
+plot(ts_interp,az_filtered_mex,"red");
 plot(ts_interp,az_filtered_FilterX,"black");
 gx_fig = nexttile(2);
 hold on
 title("gx");
 plot(ts_raw,gx_raw,'.g');
 plot(ts_interp,gx_interp,'--y');
-plot(ts_interp,gx_filtered,"red");
-plot(ts_interp,gx_filtered_mex,"blue");
+plot(ts_interp,gx_matlab_iir,"blue");
+plot(ts_interp,gx_filtered_mex,"red");
 plot(ts_interp,gx_filtered_FilterX,"black");
 gy_fig = nexttile(4);
 hold on
 title("gy");
 plot(ts_raw,gy_raw,'.g');
 plot(ts_interp,gy_interp,'--y');
-plot(ts_interp,gy_filtered,"red");
-plot(ts_interp,gy_filtered_mex,"blue");
+plot(ts_interp,gy_matlab_iir,"blue");
+plot(ts_interp,gy_filtered_mex,"red");
 plot(ts_interp,gy_filtered_FilterX,"black");
 gz_fig = nexttile(6);
 hold on
 title("gz");
 plot(ts_raw,gz_raw,'.g');
 plot(ts_interp,gz_interp,'--y');
-plot(ts_interp,gz_filtered,"red");
-plot(ts_interp,gz_filtered_mex,"blue");
+plot(ts_interp,gz_matlab_iir,"blue");
+plot(ts_interp,gz_filtered_mex,"red");
 plot(ts_interp,gz_filtered_FilterX,"black");
 linkaxes([ax_fig,ay_fig,az_fig,gx_fig,gy_fig,gz_fig],"x");
 set(plot_compare_acc_filtered, 'Name', 'Compare raw IMU and filtered IMU');
@@ -131,12 +134,12 @@ fusion_input_acc_movmean.gz = filter(windowFilter,1,fusion_input_acc_movmean.gz)
 
 % Get input of iir-filtered IMU data for mexFusion
 fusion_input_acc_iir = fusion_input_interp;
-fusion_input_acc_iir.ax = ax_filtered;
-fusion_input_acc_iir.ay = ay_filtered;
-fusion_input_acc_iir.az = az_filtered;
-fusion_input_acc_iir.gx = gx_filtered;
-fusion_input_acc_iir.gy = gy_filtered;
-fusion_input_acc_iir.gz = gz_filtered;
+fusion_input_acc_iir.ax = ax_matlab_iir;
+fusion_input_acc_iir.ay = ay_matlab_iir;
+fusion_input_acc_iir.az = az_matlab_iir;
+fusion_input_acc_iir.gx = gx_matlab_iir;
+fusion_input_acc_iir.gy = gy_matlab_iir;
+fusion_input_acc_iir.gz = gz_matlab_iir;
 
 % Calculate AHRS by mexFusion
 fusion_output_raw = mexFusion(fusion_input_interp);
@@ -246,8 +249,25 @@ xlim([ts_interp(1) ts_interp(length(ts_interp))]);
 ylim([f_diff2(1) f_diff2(length(f_diff2))]);
 
 linkaxes([spect_raw_acc,spect_raw_acc2,filter_spect1,filter_spect2,spect_diff1,spect_diff2],"x");
+hold off
 
-
+filter_response = figure(5);
+tiledlayout(1,2);
+zpk_fig = nexttile(1);
+zplane(b,a);
+text(real(z)-0.1,imag(z)-0.1,"Zeros")
+text(real(p)-0.1,imag(p)-0.1,"Poles")
+f_rsp_fig = nexttile(2);
+hold on
+[h,w] = freqz(b,a,'whole',fs);plot(w/pi,20*log10(abs(h)))
+ax = gca;
+ax.YLim = [-fs/2 20];
+ax.XTick = 0:.1:1;
+ax.XLim = [0 1];
+xlabel('Normalized Frequency (\times\pi rad/sample)')
+ylabel('Magnitude (dB)')
+xline(fc/(fs/2))
+hold off
 
 function fig = quaternion_plot_compare(ts,a,b)
     fig = figure(2);
@@ -308,7 +328,7 @@ function fig = vector3_plot_compare(ts,a,b)
     hold off
 end
 
-function output = test_iir(fs,fc,v)
-    [b,a] = butter(6,fc/(fs/2));
+function output = matlab_iir(order,fs,fc,v)
+    [b,a] = butter(order,fc/(fs/2));
     output=filter(b,a,v);
 end

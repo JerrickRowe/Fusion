@@ -8,26 +8,21 @@
 
 #include "iir.h"
 
-#define LENGTH (11)
+#define ORDER  (3)
+#define LENGTH ((ORDER) + 1)
 
-static FLOAT coef_a[LENGTH] = {
+static FLOAT coef_a[] = {
 	1,
-	-6.78896078801031,
-	21.1186057325602,
-	-39.5466389186279,
-	49.2807281548787,
-	-42.6412048119369,
-	25.9155696805515,
-	-10.9133701016210,
-	3.04505315550608,
-	-0.507983530677825,
-	0.0384514437152823,
+	-2.15128014016221,
+	1.62697225980787,
+	-0.422593399271637,
 };
 
-static FLOAT coef_b[LENGTH] = {
-	2.44156579882903e-07, 2.44156579882903e-06, 1.09870460947307e-05, 2.92987895859484e-05,
-	5.12728817754097e-05, 6.15274581304916e-05, 5.12728817754097e-05, 2.92987895859484e-05,
-	1.09870460947307e-05, 2.44156579882903e-06, 2.44156579882903e-07,
+static FLOAT coef_b[] = {
+	0.00663734004675317,
+	0.0199120201402595,
+	0.0199120201402595,
+	0.00663734004675317,
 };
 
 void CoreSingleN(float	*X,
@@ -54,6 +49,17 @@ void CoreSingleN(float	*X,
 	// All intermediate values are DOUBLEs to increase the accuracy.
 	// This is 30% faster than the DOUBLE method.
 
+	mexPrintf("mex_iir: *X=%f,MX=%d,NX=%d,order=%d,*Z=%f,*Y=%d", *X, MX, NX, order, *Z, *Y);
+	mexPrintf("\n  a = {");
+	for(int k = 0; k < order + 1; k++) {
+		mexPrintf("%.2f, ", a[k]);
+	}
+	mexPrintf("}\n  b = {");
+	for(int k = 0; k < order + 1; k++) {
+		mexPrintf("%.2f, ", b[k]);
+	}
+
+	mexPrintf("}\n");
 	double Xi, Yi;
 	mwSize i, j, R;
 
@@ -98,9 +104,6 @@ void CoreDoubleN(double *X,
 	//   Z:  DOUBLE array, final conditions.
 	//   Y:  Double array, allocated by the caller.
 
-	double Xi, Yi;
-	mwSize i, j, R;
-
 	mexPrintf("mex_iir: *X=%f,MX=%d,NX=%d,order=%d,*Z=%f,*Y=%d", *X, MX, NX, order, *Z, *Y);
 	mexPrintf("\n  a = {");
 	for(int k = 0; k < order + 1; k++) {
@@ -111,6 +114,9 @@ void CoreDoubleN(double *X,
 		mexPrintf("%.2f, ", b[k]);
 	}
 	mexPrintf("}\n");
+
+	double Xi, Yi;
+	mwSize i, j, R;
 
 	i = 0;
 	while(NX--) {	 // Next slice
@@ -164,14 +170,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	for(int i = 0; i < LENGTH; i++) {
 		ba[i]		   = coef_b[i];
 		ba[LENGTH + i] = coef_a[i];
-		mexPrintf("b[%d]=%f, a[%d]=%f \n", i, ba[i], i, ba[LENGTH + i]);
 	}
 	NormalizeBA(ba, LENGTH);
-	for(int i = 0; i < LENGTH; i++) {
-		mexPrintf("Norm: b[%d]=%f, a[%d]=%f, Z[%d]=%f\n", i, ba[i], i, ba[LENGTH + i], i, TMPZ[i]);
-	}
 
-	CoreDoubleN(input, len, 1, &ba[LENGTH], ba, LENGTH - 1, TMPZ, Result);
+	// CoreSingleN(input, len, 1, &ba[LENGTH], ba, ORDER, TMPZ, Result);
+	CoreDoubleN(input, len, 1, &ba[LENGTH], ba, ORDER, TMPZ, Result);
 
 	// for(int i = 0; i < len; i++) {
 	// 	// *(Result++) = (double)iir_step(iir, (FLOAT) * (input++));
